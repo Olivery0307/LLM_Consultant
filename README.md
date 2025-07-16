@@ -2,35 +2,43 @@
 
 ## 📖 About The Project
 
-This project is an advanced, AI-powered business consultant designed to demonstrate a full MLOps lifecycle, from initial concept to a deployed, production-ready system. The application functions as an intelligent agent that leverages Large Language Models (LLMs) to perform complex business analysis tasks. It can conduct live web research, analyze user-provided documents (`.pdf`, `.txt`, `.csv`), perform quantitative calculations, and generate professional data visualizations.
+This project is an advanced, AI-powered business consultant designed to demonstrate a full MLOps lifecycle, from initial concept to a deployed, production-ready system. The application functions as an intelligent agent that leverages Large Language Models (LLMs) to perform complex business analysis tasks.
+
+The system is architected to be robust, scalable, and efficient, incorporating key MLOps principles like **asynchronous task processing** to handle long-running jobs and a **caching layer** to reduce latency and API costs. It can conduct live web research, analyze user-provided documents (`.pdf`, `.txt`, `.csv`), perform quantitative calculations, and generate professional data visualizations.
 
 This repository showcases skills in:
+
 * **LLM Agent Development:** Building autonomous agents with LangChain that can reason and use tools.
 * **Full-Stack Implementation:** Creating a user-friendly front-end with Streamlit and a robust Python back-end.
-* **ML System Design:** Architecting a system that is scalable, reliable, and ready for advanced MLOps practices like caching, monitoring, and automated evaluation.
+* **ML System Design & MLOps:** Architecting a system with caching, asynchronous workers, and a decoupled front-end for a professional user experience.
+* **Object-Oriented Design:** Structuring the codebase into clean, maintainable, and scalable classes.
 * **Advanced Prompt Engineering:** Crafting sophisticated prompts to control LLM output for structured, high-quality analysis.
-
----
 
 ## ✨ Features
 
 The application is organized into several modes, each providing a unique analytical capability:
 
-#### 1. General Web Consultant
-* Accepts any open-ended business question.
-* Performs live web research using the Tavily Search API.
-* Synthesizes the findings into a structured report, including an **Executive Summary**, **Key Findings**, and a **Concluding Insight**.
+#### 1. Case Study Analysis (Lead Consultant)
 
-#### 2. SWOT Analysis
-* Generates a comprehensive SWOT (Strengths, Weaknesses, Opportunities, Threats) analysis for any given company.
-* Conducts targeted research for each of the four components to produce a detailed and structured report.
+* **The most advanced feature.** Users can define a central business question and upload a "data room" of multiple file types (`.pdf`, `.txt`, `.csv`).
+* A high-level "Lead Consultant" agent autonomously delegates tasks to specialized sub-tools to perform a multi-source analysis.
+* It synthesizes findings from internal documents and external web research into a single, comprehensive report.
 
-#### 3. Document & Data Analysis
-* **Analyze Private Documents:** Users can upload `.pdf` and `.txt` files for analysis. The system uses a RAG (Retrieval-Augmented Generation) pipeline to answer questions based on the document's content.
-* **Perform Quantitative Analysis:** Users can upload `.csv` files and ask the agent to perform calculations (e.g., average, sum, count) by writing and executing Python `pandas` code.
-* **Automated Data Visualization:** The agent can generate professional, aesthetically pleasing charts and plots using `seaborn` and `matplotlib` to visually answer user questions about CSV data.
+#### 2. Conversational Web Consultant
 
----
+* A chat agent with conversational memory that maintains the context of the discussion.
+* Users can ask follow-up questions naturally without repeating themselves.
+* The agent's persona is tailored to act as an expert business and financial consultant.
+
+#### 3. Strategic Frameworks (One-Off Reports)
+
+* **SWOT Analysis:** Generates a comprehensive SWOT (Strengths, Weaknesses, Opportunities, Threats) analysis for any given company.
+* **Competitor Analysis:** Identifies a company's main competitors and generates a comparative Markdown table with key metrics.
+
+#### 4. System & MLOps Features
+
+* **Asynchronous Task Queue (Celery & Redis):** Long-running analyses (like Case Studies) are executed in a background worker process. This prevents the UI from freezing and provides a smooth, non-blocking user experience.
+* **LLM Caching Layer (Redis):** All calls to the LLM are cached. This dramatically reduces latency and API costs on repeated or similar queries, making the application feel much faster.
 
 ## 🛠️ Technology Stack
 
@@ -38,43 +46,66 @@ The application is organized into several modes, each providing a unique analyti
 * **Core Frameworks:** LangChain, Streamlit
 * **LLM & Embeddings:** Google Gemini API
 * **Search Tool:** Tavily Search API
+* **Asynchronous Tasks:** Celery
+* **Caching & Message Broker:** Redis
 * **Data Processing:** Pandas, PyPDF
 * **Vector Store:** FAISS (for RAG)
 * **Data Visualization:** Matplotlib, Seaborn
-* **Environment Management:** `venv`, `python-dotenv`
-
----
+* **Environment Management:** Docker, `venv`, `python-dotenv`
 
 ## 🚀 Setup & Installation
 
-To run this project locally, please follow these steps:
+To run this project locally, a two-terminal setup is required to manage the web app and the background worker separately.
 
-1.  **Clone the repository:**
-    ```sh
-    git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
-    cd your-repo-name
+### Step 1: Clone the Repository
+
+`git clone https://github.com/your-username/your-repo-name.git`
+`cd your-repo-name`
+
+### Step 2: Create and Activate a Virtual Environment
+
+`python -m venv venv`
+`source venv/bin/activate`  # On Windows, use `venv\Scripts\activate`
+
+### Step 3: Install Dependencies
+
+`pip install -r requirements.txt`
+
+### Step 4: Set Up API Keys
+
+* Create a `.env` file in the root of the project.
+* Add your API keys to the file:
+    ```
+    GOOGLE_API_KEY="YOUR_GOOGLE_KEY_HERE"
+    TAVILY_API_KEY="YOUR_TAVILY_KEY_HERE"
     ```
 
-2.  **Create and activate a virtual environment:**
-    ```sh
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+### Step 5: Start Redis with Docker
+
+* Make sure you have Docker Desktop installed and running.
+* In any terminal, run this command to start the Redis server in the background:
     ```
-
-3.  **Install dependencies:**
-    ```sh
-    pip install -r requirements.txt
+    docker run -d -p 6379:6379 --name my-redis redis
     ```
+    *(If it's already running, you can use `docker start my-redis`)*
 
-4.  **Set up API keys:**
-    * Create a `.env` file in the root of the project.
-    * Add your API keys to the file:
-        ```env
-        GOOGLE_API_KEY="YOUR_GOOGLE_KEY_HERE"
-        TAVILY_API_KEY="YOUR_TAVILY_KEY_HERE"
-        ```
+### Step 6: Run the Application (Two Terminals)
 
-5.  **Run the application:**
-    ```sh
+**In your first terminal:**
+
+1.  Activate the virtual environment (`source venv/bin/activate`).
+2.  Start the Celery worker. This will listen for background jobs.
+    ```
+    celery -A tasks worker --loglevel=info
+    ```
+3.  Leave this terminal running.
+
+**In your second terminal (e.g., a split terminal in VS Code):**
+
+1.  Activate the virtual environment (`source venv/bin/activate`).
+2.  Start the Streamlit web application.
+    ```
     python -m streamlit run app.py
     ```
+
+Your browser should now open with the AI Business Consultant application running.
