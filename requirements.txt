@@ -23,3 +23,5 @@ grpcio==1.64.1
 protobuf==4.25.3
 
 redis==5.0.7
+celery==5.4.0
+
