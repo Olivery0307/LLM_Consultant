@@ -5,7 +5,6 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_core.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import MessagesPlaceholder
-from langchain import hub
 from utils import get_llm
 
 # --- Agent Tools ---
@@ -32,7 +31,6 @@ class WebConsultantAgent:
         self.tools = [TavilySearchResults(max_results=7), scrape_website]
         
         # 1. Conversational Executor (with memory and a specialized persona)
-        # --- FIX APPLIED HERE: Added the missing {tools} and {tool_names} placeholders ---
         prompt_template = """
         You are an expert business and financial consultant. Your responses should be analytical, data-driven, and focused strictly on business, finance, and technology topics.
         You have access to the following tools to perform up-to-date research. Always use your tools to answer the user's question.
@@ -70,7 +68,27 @@ class WebConsultantAgent:
         )
 
         # 2. Report Executor (memory-less, for structured one-off reports)
-        react_prompt = hub.pull("hwchase17/react")
+        report_prompt_template = """
+        Answer the following questions as best you can. You have access to the following tools:
+        {tools}
+
+        Use the following format:
+
+        Question: the input question you must answer
+        Thought: you should always think about what to do
+        Action: the action to take, should be one of [{tool_names}]
+        Action Input: the input to the action
+        Observation: the result of the action
+        ... (this Thought/Action/Action Input/Observation can repeat N times)
+        Thought: I now know the final answer
+        Final Answer: the final answer to the original input question
+
+        Begin!
+
+        Question: {input}
+        Thought:{agent_scratchpad}
+        """
+        react_prompt = PromptTemplate.from_template(report_prompt_template)
         report_agent = create_react_agent(self.llm, self.tools, react_prompt)
         self.report_executor = AgentExecutor(
             agent=report_agent, tools=self.tools, verbose=True, handle_parsing_errors=True

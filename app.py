@@ -11,7 +11,27 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from agents.web_agent import WebConsultantAgent
 from agents.lead_consultant import LeadConsultantAgent, process_uploaded_files_for_tools
 
-# Load environment variables from .env file at the very beginning
+import langchain
+from langchain_community.cache import RedisCache
+import redis
+
+
+# --- Redis Cache Configuration ---
+try:
+    # Connect to the running Redis container
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
+    # Set the global LangChain cache
+    langchain.llm_cache = RedisCache(redis_client)
+    print("INFO: Redis cache configured successfully.")
+except Exception as e:
+    print(f"WARNING: Could not connect to Redis. Caching is disabled. Error: {e}")
+# ----------------------------------------------------
+
+# Add the project's root directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+
+# Load environment variables
 load_dotenv()
 
 # --- App UI Configuration ---

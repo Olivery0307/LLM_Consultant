@@ -39,8 +39,7 @@ def csv_analysis_tool(question: str) -> str:
     including calculations, summaries, and creating visualizations.
     The input should be a clear question about the CSV data.
     """
-    # Note: This tool currently only supports the first uploaded CSV file.
-    # A more advanced version could handle multiple CSVs.
+
     temp_csv_path = "/tmp/uploaded_csv_0.csv"
     if not os.path.exists(temp_csv_path):
         return "Error: No CSV file has been processed. Please upload a CSV file."
@@ -48,7 +47,7 @@ def csv_analysis_tool(question: str) -> str:
     llm = get_llm()
     agent_executor = create_csv_agent(llm, temp_csv_path, verbose=True, allow_dangerous_code=True)
     
-    # We use a specific prompt to guide the agent
+    # A specific prompt to guide the agent
     prompt = f"""
     You are a data analyst. Your task is to analyze the provided CSV to answer the user's question.
     You MUST write and execute Python code using the pandas dataframe (df) to find the answer.
@@ -99,17 +98,72 @@ class LeadConsultantAgent:
         self.llm = get_llm()
         # The Lead Agent has access to all our tools
         self.tools = [TavilySearchResults(max_results=5), document_qa_tool, csv_analysis_tool]
+        react_prompt_template = """
+        Answer the following questions as best you can. You have access to the following tools:
+        {tools}
+
+        **Your primary goal is to delegate tasks to the appropriate tool.**
+        - For questions about the content of text documents (PDFs, TXTs), use the `document_qa_tool`.
+        - For any questions requiring data analysis, calculations, or visualization from a CSV file, use the `csv_analysis_tool`.
+        - For general web research or information not in the documents, use `tavily_search_results_json`.
+
+        Use the following format:
+
+        Question: the input question you must answer
+        Thought: I need to decide which tool is best suited to answer the user's question. Based on the question, I will choose one of my available tools.
+        Action: the action to take, should be one of [{tool_names}]
+        Action Input: the input to the action
+        Observation: the result of the action
+        ... (this Thought/Action/Action Input/Observation can repeat N times)
+        Thought: I now have enough information from my tools to construct the final answer.
+        Final Answer: the final, comprehensive answer to the original input question
+
+        Begin!
+
+        Question: {input}
+        Thought:{agent_scratchpad}
+        """
+        prompt = PromptTemplate.from_template(react_prompt_template)
         
-        prompt = hub.pull("hwchase17/react")
         agent = create_react_agent(self.llm, self.tools, prompt)
         self.executor = AgentExecutor(
-            agent=agent,
-            tools=self.tools,
-            verbose=True,
-            handle_parsing_errors=True
+            agent=agent, tools=self.tools, verbose=True, handle_parsing_errors=True
         )
+        
+    def _create_case_study_prompt(self, case_question):
+        """Creates a detailed, structured prompt for the final report."""
+        template = """
+        You are a Lead Strategic Consultant. Your task is to analyze a complex business case based on a central question, a set of internal documents, and live web research.
+
+        Synthesize all the information you gather into a single, comprehensive report structured as follows:
+
+        **1. Executive Summary:**
+           - A concise overview of the situation and your final recommendation.
+
+        **2. Analysis of Internal Documents:**
+           - Summarize the key findings from the provided PDF, TXT, and CSV files.
+           - Extract specific data points, financial figures, or contractual terms that are relevant to the case.
+
+        **3. External Market & Competitor Analysis:**
+           - Summarize your findings from web research about the broader market context, trends, and competitor actions.
+
+        **4. Synthesized Recommendation (Pros & Cons):**
+           - Based on *both* internal and external findings, provide a balanced view.
+           - List the primary "Pros" (arguments for the proposed action).
+           - List the primary "Cons" (risks and arguments against the proposed action).
+
+        **5. Final Recommendation:**
+           - Conclude with a clear, actionable recommendation.
+
+        Now, begin your analysis for the following case.
+
+        **Central Business Question:** "{question}"
+        """
+        return template.format(question=case_question)
+
 
     def run_case_study(self, case_question):
         """Runs the full analysis on a complex case."""
-        response = self.executor.invoke({"input": case_question})
+        structured_prompt = self._create_case_study_prompt(case_question)
+        response = self.executor.invoke({"input": structured_prompt})
         return response['output']
